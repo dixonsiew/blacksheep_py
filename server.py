@@ -1,8 +1,6 @@
 from datetime import datetime
-from blacksheep import Application, get, json
-from blacksheep.server.openapi.v3 import OpenAPIHandler
+from blacksheep import Application, get
 from blacksheep.server.openapi.common import ContentInfo, ResponseInfo
-from openapidocs.v3 import Info
 
 from dataclasses import dataclass
 
@@ -10,7 +8,7 @@ import asyncpg
 from asyncpg import Pool
 from typing import List, Optional
 
-from tortoise import Tortoise
+from docs import docs
 
 
 DB_CONFIG = {
@@ -53,8 +51,8 @@ app = Application()
 @app.on_start
 async def configure_database(application: Application) -> None:
     """Initialize database connection pool on app startup."""
-    global pool
     pool = await asyncpg.create_pool(**DB_CONFIG)
+    application.services.add_instance(pool, asyncpg.Pool)
     print("Database pool created successfully")
 
 @app.on_stop
@@ -66,7 +64,6 @@ async def close_database_connection(application: Application) -> None:
 
 app.serve_files("public", root_path="public", fallback_document="index.html")
 
-docs = OpenAPIHandler(info=Info(title="Example API", version="0.0.1"))
 docs.bind_app(app)
 
 
@@ -89,9 +86,9 @@ def get_item() -> Item:
 
 @docs(responses={200: None}, tags=["Cities"])
 @get("/city/list")
-async def get_cities() -> List[City]:
+async def get_cities(dbp: asyncpg.Pool) -> List[City]:
     """Get all cities."""
-    async with pool.acquire() as conn:
+    async with dbp.acquire() as conn:
         rows = await conn.fetch("""
             SELECT id, code, created_by, created_date, deleted, deleted_by, deleted_date, "desc", modified_by, modified_date, ref
             FROM city
