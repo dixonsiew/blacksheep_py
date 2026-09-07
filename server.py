@@ -1,12 +1,12 @@
 from datetime import datetime
-from blacksheep import Application, Response, get, json
+from blacksheep import Application, Request, Response, get, json, bad_request
 from blacksheep.server.openapi.common import ContentInfo, ResponseInfo
 from blacksheep.exceptions import HTTPException
-from blacksheep.messages import Request
 
 import asyncpg
 from asyncpg import Pool
 from typing import Optional
+from pydantic import ValidationError
 
 from docs import docs
 
@@ -16,7 +16,7 @@ from services.common_setup import CommonSetupService
 
 class MyApp(Application):
     async def handle_internal_server_error(self, request: Request, exc: Exception):
-        s = exc.status_code if isinstance(exc, HTTPException) else 500
+        s = exc.status_code if isinstance(exc, HTTPException) else 500 
         return json({
             "statusCode": s,
             "message": exc.message if isinstance(exc, HTTPException) else "An unexpected error occurred"
@@ -36,6 +36,19 @@ pool: Optional[Pool] = None
 
 app = MyApp()
 
+@app.exception_handler(ValidationError)
+async def validation_error_handler(app: MyApp, request: Request, exc: ValidationError):
+    errs = exc.errors()
+    lm = []
+    for err in errs:
+        s = ".".join(str(loc) for loc in err["loc"])
+        ms = err["msg"]
+        lm.append(f"[{s}] {ms}")
+        
+    return bad_request({
+        "statusCode": 400,
+        "message": " and ".join(lm)
+    })
 
 @app.on_start
 async def configure_database(application: MyApp) -> None:
@@ -43,14 +56,12 @@ async def configure_database(application: MyApp) -> None:
     pool = await asyncpg.create_pool(**DB_CONFIG)
     application.services.add_instance(pool, asyncpg.Pool)
     application.services.add_transient(CommonSetupService)
-    print("Database pool created successfully")
 
 @app.on_stop
 async def close_database_connection(application: MyApp) -> None:
     """Close database connection pool on app shutdown."""
     if pool:
         await pool.close()
-        print("Database pool closed")
 
 app.serve_files("public", root_path="public", fallback_document="index.html")
 
