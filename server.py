@@ -1,15 +1,26 @@
 from datetime import datetime
-from blacksheep import Application, get
+from blacksheep import Application, Response, get, json
 from blacksheep.server.openapi.common import ContentInfo, ResponseInfo
-
-from dataclasses import dataclass
+from blacksheep.exceptions import HTTPException
+from blacksheep.messages import Request
 
 import asyncpg
 from asyncpg import Pool
-from typing import List, Optional
+from typing import Optional
 
 from docs import docs
 
+from controllers.setup.city import CityController
+
+from services.common_setup import CommonSetupService
+
+class MyApp(Application):
+    async def handle_internal_server_error(self, request: Request, exc: Exception):
+        s = exc.status_code if isinstance(exc, HTTPException) else 500
+        return json({
+            "statusCode": s,
+            "message": exc.message if isinstance(exc, HTTPException) else "An unexpected error occurred"
+        }, s)
 
 DB_CONFIG = {
     "host": "localhost",
@@ -23,40 +34,19 @@ DB_CONFIG = {
 
 pool: Optional[Pool] = None
 
-@dataclass
-class Item:
-    id: int
-    name: str
-    description: str
-    price: float
-    
-@dataclass
-class City:
-    id: int = None
-    code: str = ""
-    created_by: int = None
-    created_date: str = ""
-    deleted: bool = False
-    deleted_by: int = None
-    deleted_date: str = ""
-    desc: str = ""
-    modified_by: int = None
-    modified_date: str = ""
-    ref: str = ""
-
-
-app = Application()
+app = MyApp()
 
 
 @app.on_start
-async def configure_database(application: Application) -> None:
+async def configure_database(application: MyApp) -> None:
     """Initialize database connection pool on app startup."""
     pool = await asyncpg.create_pool(**DB_CONFIG)
     application.services.add_instance(pool, asyncpg.Pool)
+    application.services.add_transient(CommonSetupService)
     print("Database pool created successfully")
 
 @app.on_stop
-async def close_database_connection(application: Application) -> None:
+async def close_database_connection(application: MyApp) -> None:
     """Close database connection pool on app shutdown."""
     if pool:
         await pool.close()
@@ -65,38 +55,6 @@ async def close_database_connection(application: Application) -> None:
 app.serve_files("public", root_path="public", fallback_document="index.html")
 
 docs.bind_app(app)
-
-
-@docs(responses={200: None}, tags=["Home"])
-@get("/")
-def home():
-    return f"Hello, World! {datetime.now().isoformat()}"
-
-@docs(responses={200: None}, tags=["Home"])
-@get("/data")
-def data():
-    return {"message": "This is some data!"}
-
-@docs(responses={200: ResponseInfo('', content=[ContentInfo(Item)])}, tags=["Items"])
-@get("/item")
-def get_item() -> Item:
-    # In a real application, you would fetch the item from a database or other data source.
-    # Here, we return a sample item for demonstration purposes.
-    return Item(id=999, name=f"Item {999}", description=f"This is item {999}.", price=9.99)
-
-@docs(responses={200: None}, tags=["Cities"])
-@get("/city/list")
-async def get_cities(dbp: asyncpg.Pool) -> List[City]:
-    """Get all cities."""
-    async with dbp.acquire() as conn:
-        rows = await conn.fetch("""
-            SELECT id, code, created_by, created_date, deleted, deleted_by, deleted_date, "desc", modified_by, modified_date, ref
-            FROM city
-            ORDER BY id
-        """)
-        
-    lx = [City(**dict(row)) for row in rows]
-    return lx
 
 
 # http://localhost:8000/public/rapidoc/index.html#overview
