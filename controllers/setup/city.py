@@ -1,6 +1,7 @@
 from blacksheep.server.controllers import APIController, delete, get, patch, post, put
 from blacksheep.server.openapi.common import ContentInfo, ParameterInfo, ResponseInfo
 from blacksheep import FromQuery, FromJSON, FromRoute, Response, json, not_found, ok
+from controllers.base import BaseController
 from docs import docs
 from dto import KeywordDto, CommonSetupDto
 from models import CommonSetup
@@ -12,16 +13,15 @@ from services.common_setup import CommonSetupService
 
 
 @docs.tags("Setup/City")
-class CityController(APIController):
+class CityController(BaseController):
     
     def __init__(self, cs: CommonSetupService):
         self.cs = cs
         self.table = "city"
     
     @classmethod
-    def route(cls) -> str:
+    def path(cls) -> str:
         return "api"
-    
     
     @docs(responses={200: ResponseInfo('', content=[ContentInfo(List[CommonSetup])])})
     @get("/lookup/cities")
