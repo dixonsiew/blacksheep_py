@@ -1,6 +1,4 @@
-from datetime import datetime
-from blacksheep import Application, Request, Response, get, json, bad_request
-from blacksheep.server.openapi.common import ContentInfo, ResponseInfo
+from blacksheep import Application, Request, Response, get, bad_request, json
 from blacksheep.exceptions import HTTPException
 
 import asyncpg
@@ -10,9 +8,9 @@ from pydantic import ValidationError
 
 from docs import docs
 
-from controllers.setup.city import CityController
-
 from services.common_setup import CommonSetupService
+
+from controllers.setup.city import *
 
 class MyApp(Application):
     async def handle_internal_server_error(self, request: Request, exc: Exception):
@@ -21,6 +19,7 @@ class MyApp(Application):
             "statusCode": s,
             "message": exc.message if isinstance(exc, HTTPException) else "An unexpected error occurred"
         }, s)
+        
 
 DB_CONFIG = {
     "host": "localhost",
@@ -34,31 +33,44 @@ DB_CONFIG = {
 
 pool: Optional[Pool] = None
 
-app = MyApp()
+app = Application()
+
+
+@app.exception_handler(Exception)
+async def handle_internal_server_error(self, request, exc: Exception):
+    s = exc.status_code if isinstance(exc, HTTPException) else 500 
+    return json({
+        "statusCode": s,
+        "message": exc.message if isinstance(exc, HTTPException) else "An unexpected error occurred"
+    }, s)
+
 
 @app.exception_handler(ValidationError)
-async def validation_error_handler(app: MyApp, request: Request, exc: ValidationError):
+async def pydantic_validation_error_handler(self, request, exc: ValidationError) -> Response:
     errs = exc.errors()
     lm = []
     for err in errs:
         s = ".".join(str(loc) for loc in err["loc"])
         ms = err["msg"]
         lm.append(f"[{s}] {ms}")
-        
+
     return bad_request({
         "statusCode": 400,
         "message": " and ".join(lm)
     })
+    
+# app.exceptions_handlers[Exception] = handle_internal_server_error
+# app.exceptions_handlers[ValidationError] = pydantic_validation_error_handler
 
 @app.on_start
-async def configure_database(application: MyApp) -> None:
+async def configure_database(application: Application) -> None:
     """Initialize database connection pool on app startup."""
     pool = await asyncpg.create_pool(**DB_CONFIG)
     application.services.add_instance(pool, asyncpg.Pool)
     application.services.add_transient(CommonSetupService)
 
 @app.on_stop
-async def close_database_connection(application: MyApp) -> None:
+async def close_database_connection(application: Application) -> None:
     """Close database connection pool on app shutdown."""
     if pool:
         await pool.close()

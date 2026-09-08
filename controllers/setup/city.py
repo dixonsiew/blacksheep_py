@@ -1,7 +1,7 @@
-from blacksheep.server.controllers import APIController, delete, get, patch, post, put
+from blacksheep.server.controllers import delete, get, post, put
 from blacksheep.server.openapi.common import ContentInfo, ParameterInfo, ResponseInfo
-from blacksheep import FromQuery, FromJSON, FromRoute, Response, json, not_found, ok
-from controllers.base import BaseController
+from blacksheep import FromQuery, FromJSON, FromRoute, Request, Response
+from controllers.base import BaseSetupController
 from docs import docs
 from dto import KeywordDto, CommonSetupDto
 from models import CommonSetup
@@ -13,15 +13,11 @@ from services.common_setup import CommonSetupService
 
 
 @docs.tags("Setup/City")
-class CityController(BaseController):
+class CityController(BaseSetupController):
     
     def __init__(self, cs: CommonSetupService):
         self.cs = cs
         self.table = "city"
-    
-    @classmethod
-    def path(cls) -> str:
-        return "api"
     
     @docs(responses={200: ResponseInfo('', content=[ContentInfo(List[CommonSetup])])})
     @get("/lookup/cities")
@@ -59,7 +55,7 @@ class CityController(BaseController):
         total = await self.cs.count(self.table)
         pg = Pager(total, page, limit)
         lx = await self.cs.find_all(table=self.table, offset=pg.lower_bound, limit=pg.page_size, sortby=sortby, sortdir=sortdir)
-        res = json(lx)
+        res = self.json(lx)
         res.headers.add(AppConstant.X_TOTAL_COUNT, bytes(str(total), 'utf-8'))
         res.headers.add(AppConstant.X_TOTAL_PAGES, bytes(str(pg.total_pages), 'utf-8'))
         return res
@@ -100,7 +96,7 @@ class CityController(BaseController):
         total = await self.cs.count_by_keyword(key, self.table)
         pg = Pager(total, page, limit)
         lx = await self.cs.find_by_keyword(keyword=key, offset=pg.lower_bound, limit=pg.page_size, sortby=sortby, sortdir=sortdir, table=self.table)
-        res = json(lx)
+        res = self.json(lx)
         res.headers.add(AppConstant.X_TOTAL_COUNT, bytes(str(total), 'utf-8'))
         res.headers.add(AppConstant.X_TOTAL_PAGES, bytes(str(pg.total_pages), 'utf-8'))
         return res
@@ -108,15 +104,16 @@ class CityController(BaseController):
     @docs(
         responses={200: ResponseInfo('')},
         parameters={
-            "req": ParameterInfo(description="Create City Request")
+            "req": ParameterInfo(description="Create City Request", value_type=CommonSetupDto)
         }
     )
     @post("/city")
-    async def create(self, req: FromJSON[CommonSetupDto]) -> Response:
-        data = req.value
+    async def create(self, req: FromJSON[dict]) -> Response:
+        m = req.value
+        data = CommonSetupDto(**m)
         o = CommonSetup(code=data.code, desc=data.desc, ref=data.ref, created_by=1)
         await self.cs.save(o, self.table)
-        return ok({
+        return self.ok({
             "success": 1
         })
     
@@ -132,7 +129,7 @@ class CityController(BaseController):
         if o:
             return o
         else:
-            return not_found({
+            return self.not_found({
                 "statusCode": 404,
                 "message": "Record not found"
             })
@@ -141,12 +138,13 @@ class CityController(BaseController):
         responses={200: ResponseInfo('')},
         parameters={
             "id": ParameterInfo(description="Id"),
-            "req": ParameterInfo(description="Update City Request")
+            "req": ParameterInfo(description="Update City Request", value_type=CommonSetupDto)
         }
     )
     @put("/city/{id}")  
-    async def update(self, id: FromRoute[int], req: FromJSON[CommonSetupDto]) -> Response:
-        data = req.value
+    async def update(self, id: FromRoute[int], req: FromJSON[dict]) -> Response:
+        m = req.value
+        data = CommonSetupDto(**m)
         o = await self.cs.find_by_id(id.value, self.table)
         if o:
             o.code = data.code
@@ -154,11 +152,11 @@ class CityController(BaseController):
             o.ref = data.ref
             o.modified_by = 1
             await self.cs.update(o, self.table)
-            return ok({
+            return self.ok({
                 "success": 1
             })
         else:
-            return not_found({
+            return self.not_found({
                 "statusCode": 404,
                 "message": "Record not found"
             })
@@ -172,6 +170,6 @@ class CityController(BaseController):
     @delete("/city/{id}")
     async def delete(self, id: FromRoute[int]) -> Response:
         await self.cs.delete_by_id(id.value, 1, self.table)
-        return ok({
+        return self.ok({
             "success": 1
         })

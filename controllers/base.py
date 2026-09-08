@@ -12,3 +12,10 @@ class BaseController(APIController):
     def path(cls) -> str:
         # Default behavior placeholder for subclass paths
         return ""
+
+class BaseSetupController(BaseController):
+    
+    @classmethod
+    def path(cls) -> str:
+        # Returns /setup/{derived_class_prefix}
+        return "api"
