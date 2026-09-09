@@ -63,7 +63,6 @@ class CommonSetupService:
                 from {table} t where (t.code ilike $1 or t.desc ilike $2 or t.ref ilike $3) and t.deleted is not true order by "{sortby}" {sortdir} offset $4 limit $5
             """, keyword, keyword, keyword, offset, limit)
 
-            
         return [CommonSetup(**dict(row)) for row in rows]
     
     async def count_by_keyword(self, keyword: str, table: str) -> int:

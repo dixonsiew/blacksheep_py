@@ -5,19 +5,23 @@ import asyncpg
 from asyncpg import Pool
 from typing import Optional
 from pydantic import ValidationError
+from dotenv import load_dotenv
 
 from docs import docs
+from config import Config
 
 from services.common_setup import CommonSetupService
+from services.user import UserService
 
 from controllers.setup.city import *
+from controllers.setup.user import *
 
 class MyApp(Application):
     async def handle_internal_server_error(self, request: Request, exc: Exception):
         s = exc.status_code if isinstance(exc, HTTPException) else 500 
         return json({
             "statusCode": s,
-            "message": exc.message if isinstance(exc, HTTPException) else "An unexpected error occurred"
+            "message": exc.message if isinstance(exc, HTTPException) else str(exc)
         }, s)
         
 
@@ -33,6 +37,9 @@ DB_CONFIG = {
 
 pool: Optional[Pool] = None
 
+load_dotenv()
+Config.init()
+
 app = Application()
 
 
@@ -41,7 +48,7 @@ async def handle_internal_server_error(self, request, exc: Exception):
     s = exc.status_code if isinstance(exc, HTTPException) else 500 
     return json({
         "statusCode": s,
-        "message": exc.message if isinstance(exc, HTTPException) else "An unexpected error occurred"
+        "message": exc.message if isinstance(exc, HTTPException) else str(exc)
     }, s)
 
 
@@ -68,6 +75,7 @@ async def configure_database(application: Application) -> None:
     pool = await asyncpg.create_pool(**DB_CONFIG)
     application.services.add_instance(pool, asyncpg.Pool)
     application.services.add_transient(CommonSetupService)
+    application.services.add_transient(UserService)
 
 @app.on_stop
 async def close_database_connection(application: Application) -> None:
