@@ -1,6 +1,7 @@
-from blacksheep.server.controllers import APIController
+from blacksheep.server.controllers import APIController, abstract
 
 
+@abstract()
 class BaseController(APIController):
     
     @classmethod
@@ -13,6 +14,7 @@ class BaseController(APIController):
         # Default behavior placeholder for subclass paths
         return ""
 
+@abstract()
 class BaseSetupController(BaseController):
     
     @classmethod

@@ -13,9 +13,6 @@ from config import Config
 from services.common_setup import CommonSetupService
 from services.user import UserService
 
-from controllers.setup.city import *
-from controllers.setup.user import *
-
 class MyApp(Application):
     async def handle_internal_server_error(self, request: Request, exc: Exception):
         s = exc.status_code if isinstance(exc, HTTPException) else 500 
@@ -42,6 +39,8 @@ Config.init()
 
 app = Application()
 
+import controllers.setup.city
+import controllers.setup.user
 
 @app.exception_handler(Exception)
 async def handle_internal_server_error(self, request, exc: Exception):
