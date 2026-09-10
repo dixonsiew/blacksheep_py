@@ -1,5 +1,5 @@
 from blacksheep.server.controllers import delete, get, post, put
-from blacksheep.server.openapi.common import ContentInfo, ParameterInfo, ResponseInfo
+from blacksheep.server.openapi.common import ContentInfo, ParameterInfo, RequestBodyInfo, ResponseInfo
 from blacksheep import FromQuery, FromJSON, FromRoute, Request, Response
 from controllers.base import BaseSetupController
 from docs import docs

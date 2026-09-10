@@ -39,8 +39,11 @@ Config.init()
 
 app = Application()
 
-import controllers.setup.city
-import controllers.setup.user
+def register():
+    import controllers.setup.city
+    import controllers.setup.user
+
+register()
 
 @app.exception_handler(Exception)
 async def handle_internal_server_error(self, request, exc: Exception):
