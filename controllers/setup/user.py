@@ -52,7 +52,7 @@ class UserController(BaseSetupController):
         ly = [x.to_dict() for x in lx]
         res = self.json(ly)
         res.headers.add(AppConstant.X_TOTAL_COUNT, bytes(str(total), 'utf-8'))
-        res.headers.add(AppConstant.X_TOTAL_PAGES, bytes(str(pg.total_pages), 'utf-8'))
+        res.headers.add(AppConstant.X_TOTAL_PAGE, bytes(str(pg.total_pages), 'utf-8'))
         return res
     
     @docs(
@@ -94,5 +94,5 @@ class UserController(BaseSetupController):
         ly = [x.to_dict() for x in lx]
         res = self.json(ly)
         res.headers.add(AppConstant.X_TOTAL_COUNT, bytes(str(total), 'utf-8'))
-        res.headers.add(AppConstant.X_TOTAL_PAGES, bytes(str(pg.total_pages), 'utf-8'))
+        res.headers.add(AppConstant.X_TOTAL_PAGE, bytes(str(pg.total_pages), 'utf-8'))
         return res

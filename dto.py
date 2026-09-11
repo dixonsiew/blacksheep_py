@@ -2,6 +2,13 @@ from dataclasses import dataclass
 from pydantic import BaseModel, Field
 
 
+class LoginDto(BaseModel):
+    username: str = Field(..., min_length=1)
+    password: str = Field(..., min_length=1)
+    
+class RefreshTokenDto(BaseModel):
+    refresh_token: str = Field(..., min_length=1)
+
 @dataclass
 class KeywordDto:
     keyword: str = ""

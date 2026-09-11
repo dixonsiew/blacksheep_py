@@ -1,4 +1,7 @@
 from blacksheep import Application, Request, Response, get, bad_request, json
+from blacksheep.server.authentication.jwt import JWTBearerAuthentication
+from blacksheep.server.authorization import auth
+from essentials.secrets import Secret
 from blacksheep.exceptions import HTTPException
 
 import asyncpg
@@ -9,6 +12,8 @@ from dotenv import load_dotenv
 
 from docs import docs
 from config import Config
+from constants.constant import AppConstant
+from cookie_auth import cookie_auth
 
 from services.common_setup import CommonSetupService
 from services.user import UserService
@@ -39,10 +44,31 @@ Config.init()
 
 app = Application()
 
+app.use_cors(
+    allow_origins=["http://localhost:3000", "http://localhost:8000"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept"],
+    expose_headers=["Authorization", "filename", AppConstant.X_TOTAL_COUNT.decode(), AppConstant.X_TOTAL_PAGE.decode()],
+    allow_credentials=True,
+)
+
+app.use_authentication().add(cookie_auth)
+app.use_authentication().add(
+    JWTBearerAuthentication(
+        secret_key=Secret(AppConstant.JWT_SECRET, direct_value=True),  # ⟵ obtained from JWT_SECRET env var
+        valid_audiences=["smrp"],
+        valid_issuers=["smrp"],
+        algorithms=["HS256"],  # ⟵ symmetric algorithms: HS256, HS384, HS512
+        scheme="JWT Symmetric"
+    )
+)
+
+app.use_authorization()
+
 def register():
     import controllers.setup.city
     import controllers.setup.user
-
+    
 register()
 
 @app.exception_handler(Exception)
@@ -91,3 +117,4 @@ docs.bind_app(app)
 
 
 # http://localhost:8000/public/rapidoc/index.html#overview
+# http://localhost:8000/public/scalar/index.html

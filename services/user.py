@@ -2,6 +2,7 @@ from models import User, Role
 from typing import List
 
 import asyncpg
+import bcrypt
 
 
 class UserService:
@@ -97,3 +98,25 @@ class UserService:
             """, keyword, keyword, keyword)
 
         return row[0] if row else 0
+    
+    async def update_last_login(self, id: int):
+        async with self.dbp.acquire() as conn:
+            await conn.execute(f"""
+                update app_user set last_login = now() where id = $1         
+            """, id)
+            
+    async def update_password(self, o: User):
+        salt = bcrypt.gensalt(rounds=10)
+        pw = o.password.encode('utf-8')
+        hashed_password = bcrypt.hashpw(pw, salt)
+        psw = hashed_password.decode('utf-8')
+        async with self.dbp.acquire() as conn:
+            await conn.execute(f"""
+                update app_user set password = $1 where id = $2
+            """, psw, o.id)
+    
+    def validate_credentials(self, user: User, password: str) -> bool:
+        password_bytes = password.encode('utf-8')
+        user_password_bytes = user.password.encode('utf-8')
+        match = bcrypt.checkpw(password_bytes, user_password_bytes)
+        return match

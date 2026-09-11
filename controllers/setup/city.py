@@ -1,6 +1,7 @@
 from blacksheep.server.controllers import delete, get, post, put
 from blacksheep.server.openapi.common import ContentInfo, ParameterInfo, RequestBodyInfo, ResponseInfo
 from blacksheep import FromQuery, FromJSON, FromRoute, Request, Response
+from blacksheep.server.authorization import auth
 from controllers.base import BaseSetupController
 from docs import docs
 from dto import KeywordDto, CommonSetupDto
@@ -20,6 +21,7 @@ class CityController(BaseSetupController):
         self.table = "city"
     
     @docs(responses={200: ResponseInfo('', content=[ContentInfo(List[CommonSetup])])})
+    @auth()
     @get("/lookup/cities")
     async def lookup_list(self) -> Response:
         return await self.cs.find_all("city", offset=0, limit=0, sortby="", sortdir="")
@@ -32,6 +34,7 @@ class CityController(BaseSetupController):
             "sort": ParameterInfo(description="Sort by field and direction (e.g., 'code:asc')")
         }
     )
+    @auth()
     @get("/cities")
     async def list(self, 
                    _page: FromQuery[int] = FromQuery(1),
@@ -57,7 +60,7 @@ class CityController(BaseSetupController):
         lx = await self.cs.find_all(table=self.table, offset=pg.lower_bound, limit=pg.page_size, sortby=sortby, sortdir=sortdir)
         res = self.json(lx)
         res.headers.add(AppConstant.X_TOTAL_COUNT, bytes(str(total), 'utf-8'))
-        res.headers.add(AppConstant.X_TOTAL_PAGES, bytes(str(pg.total_pages), 'utf-8'))
+        res.headers.add(AppConstant.X_TOTAL_PAGE, bytes(str(pg.total_pages), 'utf-8'))
         return res
     
     @docs(
@@ -69,6 +72,7 @@ class CityController(BaseSetupController):
             "keyword": ParameterInfo(description="Keyword for searching")
         }
     )
+    @auth()
     @post("/cities")
     async def search_list(self,
                           keyword: FromJSON[KeywordDto],
@@ -98,7 +102,7 @@ class CityController(BaseSetupController):
         lx = await self.cs.find_by_keyword(keyword=key, offset=pg.lower_bound, limit=pg.page_size, sortby=sortby, sortdir=sortdir, table=self.table)
         res = self.json(lx)
         res.headers.add(AppConstant.X_TOTAL_COUNT, bytes(str(total), 'utf-8'))
-        res.headers.add(AppConstant.X_TOTAL_PAGES, bytes(str(pg.total_pages), 'utf-8'))
+        res.headers.add(AppConstant.X_TOTAL_PAGE, bytes(str(pg.total_pages), 'utf-8'))
         return res
     
     @docs(
@@ -107,6 +111,7 @@ class CityController(BaseSetupController):
             "req": ParameterInfo(description="Create City Request", value_type=CommonSetupDto)
         }
     )
+    @auth()
     @post("/city")
     async def create(self, req: FromJSON[dict]) -> Response:
         m = req.value
@@ -123,6 +128,7 @@ class CityController(BaseSetupController):
             "id": ParameterInfo(description="Id")
         }
     )
+    @auth()
     @get("/city/{id}")
     async def edit(self, id: FromRoute[int]) -> CommonSetup | None:
         o = await self.cs.find_by_id(id.value, self.table)
@@ -141,6 +147,7 @@ class CityController(BaseSetupController):
             "req": ParameterInfo(description="Update City Request", value_type=CommonSetupDto)
         }
     )
+    @auth()
     @put("/city/{id}")  
     async def update(self, id: FromRoute[int], req: FromJSON[dict]) -> Response:
         m = req.value
@@ -166,7 +173,8 @@ class CityController(BaseSetupController):
         parameters={
             "id": ParameterInfo(description="Id")
         }
-    )     
+    )
+    @auth()  
     @delete("/city/{id}")
     async def delete(self, id: FromRoute[int]) -> Response:
         await self.cs.delete_by_id(id.value, 1, self.table)
