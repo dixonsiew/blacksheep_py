@@ -1,6 +1,7 @@
 from blacksheep.server.controllers import delete, get, post, put
 from blacksheep.server.openapi.common import ContentInfo, ParameterInfo, ResponseInfo
 from blacksheep import FromQuery, FromJSON, FromRoute, Request, Response
+from blacksheep.server.authorization import auth
 from controllers.base import BaseSetupController
 from docs import docs
 from dto import KeywordDto
@@ -26,6 +27,7 @@ class UserController(BaseSetupController):
             "sort": ParameterInfo(description="Sort by field and direction (e.g., 'username:asc')")
         }
     )
+    @auth()
     @get("/users")
     async def list(self, 
                     _page: FromQuery[int] = FromQuery(1),
@@ -64,6 +66,7 @@ class UserController(BaseSetupController):
             "keyword": ParameterInfo(description="Keyword for searching")
         }
     )
+    @auth()
     @post("/users")
     async def search_list(self,
                             keyword: FromJSON[KeywordDto],

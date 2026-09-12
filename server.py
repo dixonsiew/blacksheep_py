@@ -10,10 +10,11 @@ from typing import Optional
 from pydantic import ValidationError
 from dotenv import load_dotenv
 
+from auth_handler import SMRPAuthHandler
 from docs import docs
 from config import Config
 from constants.constant import AppConstant
-from cookie_auth import cookie_auth
+# from cookie_auth import cookie_auth
 
 from services.common_setup import CommonSetupService
 from services.user import UserService
@@ -52,12 +53,13 @@ app.use_cors(
     allow_credentials=True,
 )
 
-app.use_authentication().add(cookie_auth)
+app.use_authentication().add(SMRPAuthHandler())
+# app.use_authentication().add(cookie_auth)
 app.use_authentication().add(
     JWTBearerAuthentication(
         secret_key=Secret(AppConstant.JWT_SECRET, direct_value=True),  # ⟵ obtained from JWT_SECRET env var
-        valid_audiences=["smrp"],
-        valid_issuers=["smrp"],
+        valid_audiences=[],
+        valid_issuers=[],
         algorithms=["HS256"],  # ⟵ symmetric algorithms: HS256, HS384, HS512
         scheme="JWT Symmetric"
     )

@@ -2,12 +2,13 @@ from blacksheep.server.controllers import delete, get, post, put
 from blacksheep.server.openapi.common import ContentInfo, ParameterInfo, RequestBodyInfo, ResponseInfo
 from blacksheep import FromQuery, FromJSON, FromRoute, Request, Response, auth
 from blacksheep.cookies import Cookie, CookieSameSiteMode
+from guardpost import Identity
 from controllers.base import BaseController
 from docs import docs
 from dto import LoginDto, RefreshTokenDto
 from models import User
 from constants.constant import AppConstant
-from cookie_auth import cookie_auth
+# from cookie_auth import cookie_auth
 
 import jwt, datetime
 from datetime import datetime, timedelta, UTC
@@ -51,7 +52,7 @@ class AuthController(BaseController):
                 expires=datetime.now(UTC) + timedelta(hours=-1)
             )
         )
-        cookie_auth.unset_cookie(res)
+        # cookie_auth.unset_cookie(res)
         return res
         
     @docs(
@@ -128,11 +129,11 @@ class AuthController(BaseController):
             "exp": int((datetime.now(UTC) + timedelta(hours=720)).timestamp()),
         }
 
-        cookie_auth.set_cookie(
-            user_data,
-            res,
-            secure=False
-        )
+        # cookie_auth.set_cookie(
+        #     user_data,
+        #     res,
+        #     secure=False
+        # )
         
         return res
     
@@ -209,11 +210,11 @@ class AuthController(BaseController):
                 "exp": int((datetime.now(UTC) + timedelta(hours=720)).timestamp()),
             }
             
-            cookie_auth.set_cookie(
-                user_data,
-                res,
-                secure=False
-            )
+            # cookie_auth.set_cookie(
+            #     user_data,
+            #     res,
+            #     secure=False
+            # )
             
             return res
             
@@ -223,8 +224,7 @@ class AuthController(BaseController):
     @docs(responses={200: ResponseInfo('')})
     @auth()
     @get("/api/current-user")
-    async def user_details(self, req: Request) -> dict:
-        user = req.user
+    async def user_details(self, user: Identity | None) -> dict:
         sub = user.claims.get("sub")
         
         if sub is None:
