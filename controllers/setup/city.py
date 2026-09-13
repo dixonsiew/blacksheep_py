@@ -2,6 +2,7 @@ from blacksheep.server.controllers import delete, get, post, put
 from blacksheep.server.openapi.common import ContentInfo, ParameterInfo, RequestBodyInfo, ResponseInfo
 from blacksheep import FromQuery, FromJSON, FromRoute, Request, Response
 from blacksheep.server.authorization import auth
+from guardpost import Identity
 from controllers.base import BaseSetupController
 from docs import docs
 from dto import KeywordDto, CommonSetupDto
@@ -11,13 +12,15 @@ from constants.constant import AppConstant
 from typing import List
 
 from services.common_setup import CommonSetupService
+from services.token import TokenService
 
 
 @docs.tags("Setup/City")
 class CityController(BaseSetupController):
     
-    def __init__(self, cs: CommonSetupService):
+    def __init__(self, cs: CommonSetupService, ts: TokenService):
         self.cs = cs
+        self.ts = ts
         self.table = "city"
     
     @docs(responses={200: ResponseInfo('', content=[ContentInfo(List[CommonSetup])])})
@@ -113,10 +116,14 @@ class CityController(BaseSetupController):
     )
     @auth()
     @post("/city")
-    async def create(self, req: FromJSON[dict]) -> Response:
+    async def create(self, req: FromJSON[dict], user: Identity | None) -> Response:
+        user_id = self.ts.get_userid(user)
+        if user_id is None:
+            return self.unauthorized()
+        
         m = req.value
         data = CommonSetupDto(**m)
-        o = CommonSetup(code=data.code, desc=data.desc, ref=data.ref, created_by=1)
+        o = CommonSetup(code=data.code, desc=data.desc, ref=data.ref, created_by=user_id)
         await self.cs.save(o, self.table)
         return self.ok({
             "success": 1
@@ -149,7 +156,11 @@ class CityController(BaseSetupController):
     )
     @auth()
     @put("/city/{id}")  
-    async def update(self, id: FromRoute[int], req: FromJSON[dict]) -> Response:
+    async def update(self, id: FromRoute[int], req: FromJSON[dict], user: Identity | None) -> Response:
+        user_id = self.ts.get_userid(user)
+        if user_id is None:
+            return self.unauthorized()
+                
         m = req.value
         data = CommonSetupDto(**m)
         o = await self.cs.find_by_id(id.value, self.table)
@@ -157,7 +168,7 @@ class CityController(BaseSetupController):
             o.code = data.code
             o.desc = data.desc
             o.ref = data.ref
-            o.modified_by = 1
+            o.modified_by = user_id
             await self.cs.update(o, self.table)
             return self.ok({
                 "success": 1
@@ -176,8 +187,12 @@ class CityController(BaseSetupController):
     )
     @auth()  
     @delete("/city/{id}")
-    async def delete(self, id: FromRoute[int]) -> Response:
-        await self.cs.delete_by_id(id.value, 1, self.table)
+    async def delete(self, id: FromRoute[int], user: Identity | None) -> Response:
+        user_id = self.ts.get_userid(user)
+        if user_id is None:
+            return self.unauthorized()
+        
+        await self.cs.delete_by_id(id.value, user_id, self.table)
         return self.ok({
             "success": 1
         })

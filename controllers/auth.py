@@ -5,7 +5,7 @@ from blacksheep.cookies import Cookie, CookieSameSiteMode
 from guardpost import Identity
 from controllers.base import BaseController
 from docs import docs
-from dto import LoginDto, RefreshTokenDto
+from dto import LoginDto, RefreshTokenDto, ChangePasswordDto
 from models import User
 from constants.constant import AppConstant
 # from cookie_auth import cookie_auth
@@ -14,13 +14,15 @@ import jwt, datetime
 from datetime import datetime, timedelta, UTC
 
 from services.user import UserService
+from services.token import TokenService
 
 
 @docs.tags("Auth")
 class AuthController(BaseController):
     
-    def __init__(self, cs: UserService):
+    def __init__(self, cs: UserService, ts: TokenService):
         self.cs = cs
+        self.ts = ts
       
     @docs(responses={200: ResponseInfo('')})
     @post("/o/logout")
@@ -225,21 +227,41 @@ class AuthController(BaseController):
     @auth()
     @get("/api/current-user")
     async def user_details(self, user: Identity | None) -> dict:
-        sub = user.claims.get("sub")
-        
-        if sub is None:
-            return self.unauthorized()
-        
-        id = int(sub)
-        o = await self.cs.find_by_id(id)
-        
+        o = await self.ts.get_user(user)
         if o is None:
             return self.unauthorized()
-        
+
         return self.ok({
-            "id": id,
+            "id": o.id,
             "username": o.username,
             "first_name": o.first_name,
             "last_name": o.last_name,
             "roles": o.roles
+        })
+     
+    @docs(
+        responses={200: ResponseInfo('')},
+        parameters={
+            "req": ParameterInfo(description="Change Password Request", value_type=ChangePasswordDto)
+        }
+    )
+    @auth()  
+    @post("/api/change-password") 
+    async def change_password(self, req: FromJSON[dict], user: Identity | None) -> dict:
+        m = req.value
+        data = ChangePasswordDto(**m)
+        if data.password != data.confirm_password:
+            return self.bad_request({
+                "statusCode": 400,
+                "message": "Confirm Password does not match"
+            })
+            
+        o = await self.ts.get_user(user)
+        if o is None:
+            return self.unauthorized()
+        
+        o.password = data.password
+        await self.cs.update_password(o)
+        return self.ok({
+            "success": 1
         })

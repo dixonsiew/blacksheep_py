@@ -18,6 +18,8 @@ from constants.constant import AppConstant
 
 from services.common_setup import CommonSetupService
 from services.user import UserService
+from services.token import TokenService
+
 
 class MyApp(Application):
     async def handle_internal_server_error(self, request: Request, exc: Exception):
@@ -106,6 +108,7 @@ async def configure_database(application: Application) -> None:
     application.services.add_instance(pool, asyncpg.Pool)
     application.services.add_transient(CommonSetupService)
     application.services.add_transient(UserService)
+    application.services.add_transient(TokenService)
 
 @app.on_stop
 async def close_database_connection(application: Application) -> None:
