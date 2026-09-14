@@ -4,20 +4,22 @@ from blacksheep import FromQuery, FromJSON, FromRoute, Request, Response
 from blacksheep.server.authorization import auth
 from controllers.base import BaseSetupController
 from docs import docs
-from dto import KeywordDto
+from dto import KeywordDto, UserDto
 from models import User
 from utils.pager import Pager
 from constants.constant import AppConstant
 from typing import List
 
 from services.user import UserService
+from services.role import RoleService
 
 
 @docs.tags("Setup/User")
 class UserController(BaseSetupController):
     
-    def __init__(self, cs: UserService):
+    def __init__(self, cs: UserService, rs: RoleService):
         self.cs = cs
+        self.rs = rs
         
     @docs(
         responses={200: ResponseInfo('', content=[ContentInfo(List[User])])},
@@ -99,3 +101,34 @@ class UserController(BaseSetupController):
         res.headers.add(AppConstant.X_TOTAL_COUNT, bytes(str(total), 'utf-8'))
         res.headers.add(AppConstant.X_TOTAL_PAGE, bytes(str(pg.total_pages), 'utf-8'))
         return res
+    
+    @docs(responses={200: ResponseInfo('')})
+    @auth()
+    @post("/user")
+    async def create(self, req: FromJSON[UserDto], request: Request) -> Response:
+        user_id = request.user.id
+        if user_id is None:
+            return self.unauthorized()
+
+        data = req.value
+        b = await self.cs.exists_by_username(data.username)
+        
+        if b:
+            return self.bad_request({
+                "statusCode": 400,
+                "message": "A user with that username already exists"
+            })
+            
+        role = await self.rs.find_by_id(data.role_id)
+        
+        if role is None:
+            return self.not_found({
+                "statusCode": 404,
+                "message": "A user with that username already exists"
+            })
+            
+        # o = User(password=data.password, username=data.username, first_name=data.first_name, last_name=data.last_name, roles=[role])
+        # await self.cs.save(o)
+        return self.ok({
+            "success": 1
+        })

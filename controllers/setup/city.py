@@ -2,7 +2,6 @@ from blacksheep.server.controllers import delete, get, post, put
 from blacksheep.server.openapi.common import ContentInfo, ParameterInfo, RequestBodyInfo, ResponseInfo
 from blacksheep import FromQuery, FromJSON, FromRoute, Request, Response
 from blacksheep.server.authorization import auth
-from guardpost import Identity
 from controllers.base import BaseSetupController
 from docs import docs
 from dto import KeywordDto, CommonSetupDto
@@ -108,21 +107,15 @@ class CityController(BaseSetupController):
         res.headers.add(AppConstant.X_TOTAL_PAGE, bytes(str(pg.total_pages), 'utf-8'))
         return res
     
-    @docs(
-        responses={200: ResponseInfo('')},
-        parameters={
-            "req": ParameterInfo(description="Create City Request", value_type=CommonSetupDto)
-        }
-    )
+    @docs(responses={200: ResponseInfo('')})
     @auth()
     @post("/city")
-    async def create(self, req: FromJSON[dict], user: Identity | None) -> Response:
-        user_id = self.ts.get_userid(user)
+    async def create(self, req: FromJSON[CommonSetupDto], request: Request) -> Response:
+        user_id = request.user.id
         if user_id is None:
             return self.unauthorized()
         
-        m = req.value
-        data = CommonSetupDto(**m)
+        data = req.value
         o = CommonSetup(code=data.code, desc=data.desc, ref=data.ref, created_by=user_id)
         await self.cs.save(o, self.table)
         return self.ok({
@@ -150,19 +143,17 @@ class CityController(BaseSetupController):
     @docs(
         responses={200: ResponseInfo('')},
         parameters={
-            "id": ParameterInfo(description="Id"),
-            "req": ParameterInfo(description="Update City Request", value_type=CommonSetupDto)
+            "id": ParameterInfo(description="Id")
         }
     )
     @auth()
     @put("/city/{id}")  
-    async def update(self, id: FromRoute[int], req: FromJSON[dict], request: Request) -> Response:
+    async def update(self, id: FromRoute[int], req: FromJSON[CommonSetupDto], request: Request) -> Response:
         user_id = request.user.id
         if user_id is None:
             return self.unauthorized()
-                
-        m = req.value
-        data = CommonSetupDto(**m)
+            
+        data = req.value
         o = await self.cs.find_by_id(id.value, self.table)
         if o:
             o.code = data.code

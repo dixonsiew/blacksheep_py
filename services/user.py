@@ -99,6 +99,49 @@ class UserService:
 
         return row[0] if row else 0
     
+    async def save(self, o: User):
+        salt = bcrypt.gensalt(rounds=10)
+        pw = o.password.encode('utf-8')
+        hashed_password = bcrypt.hashpw(pw, salt)
+        psw = hashed_password.decode('utf-8')
+        async with self.dbp.acquire() as conn:
+            async with conn.transaction():
+                id = await conn.fetchval(f"""
+                    insert into app_user (id, username, password, first_name, last_name, active) 
+                    values(nextval('app_user_id_seq'),$1,$2,$3,$4,$5) returning id as app_user_id       
+                """, o.username, psw, o.first_name, o.last_name, True)
+                
+                for r in o.roles:
+                    await conn.execute(f"""
+                        insert into app_user_roles (app_user_id, roles_id) values($1, $2)
+                    """, id, r.id)
+                    
+    async def update(self, o: User):
+        async with self.dbp.acquire() as conn:
+            async with conn.transaction():
+                if o.password is not None and o.password != "":
+                    salt = bcrypt.gensalt(rounds=10)
+                    pw = o.password.encode('utf-8')
+                    hashed_password = bcrypt.hashpw(pw, salt)
+                    psw = hashed_password.decode('utf-8')
+                    await conn.execute(f"""
+                        update app_user set password = $1, first_name = $2, last_name = $3 where id = $4
+                    """, psw, o.first_name, o.last_name, o.id)
+                    
+                else:
+                    await conn.execute(f"""
+                        update app_user set first_name = $1, last_name = $2 where id = $3       
+                    """, o.first_name, o.last_name, o.id)
+                    
+                await conn.execute(f"""
+                    delete from app_user_roles where app_user_id = $1
+                """, o.id)
+                
+                for r in o.roles:
+                    await conn.execute(f"""
+                        insert into app_user_roles (app_user_id, roles_id) values($1, $2)
+                    """, o.id, r.id)
+    
     async def update_last_login(self, id: int):
         async with self.dbp.acquire() as conn:
             await conn.execute(f"""

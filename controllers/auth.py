@@ -2,7 +2,6 @@ from blacksheep.server.controllers import delete, get, post, put
 from blacksheep.server.openapi.common import ContentInfo, ParameterInfo, RequestBodyInfo, ResponseInfo
 from blacksheep import FromQuery, FromJSON, FromRoute, Request, Response, auth
 from blacksheep.cookies import Cookie, CookieSameSiteMode
-from guardpost import Identity
 from controllers.base import BaseController
 from docs import docs
 from dto import LoginDto, RefreshTokenDto, ChangePasswordDto
@@ -57,16 +56,10 @@ class AuthController(BaseController):
         # cookie_auth.unset_cookie(res)
         return res
         
-    @docs(
-        responses={200: ResponseInfo('')},
-        parameters={
-            "req": ParameterInfo(description="Login Request", value_type=LoginDto)
-        }
-    )
+    @docs(responses={200: ResponseInfo('')})
     @post("/o/token")
-    async def login(self, req: FromJSON[dict]) -> dict:
-        m = req.value
-        data = LoginDto(**m)
+    async def login(self, req: FromJSON[LoginDto]) -> dict:
+        data = req.value
         mx = {
             "statusCode": 401,
             "message": "Invalid Credentials"
@@ -125,11 +118,11 @@ class AuthController(BaseController):
             )
         )
         
-        user_data = {
-            "username": user.username,
-            "sub": str(user.id),
-            "exp": int((datetime.now(UTC) + timedelta(hours=720)).timestamp()),
-        }
+        # user_data = {
+        #     "username": user.username,
+        #     "sub": str(user.id),
+        #     "exp": int((datetime.now(UTC) + timedelta(hours=720)).timestamp()),
+        # }
 
         # cookie_auth.set_cookie(
         #     user_data,
@@ -139,12 +132,7 @@ class AuthController(BaseController):
         
         return res
     
-    @docs(
-        responses={200: ResponseInfo('')},
-        parameters={
-            "req": ParameterInfo(description="Refresh Token Request", value_type=RefreshTokenDto)
-        }
-    )
+    @docs(responses={200: ResponseInfo('')})
     @post("/o/refresh-token")
     async def refresh(self, req: Request, mr: FromJSON[dict]) -> dict:
         mx = {
@@ -206,11 +194,11 @@ class AuthController(BaseController):
                 )
             )
             
-            user_data = {
-                "username": username,
-                "sub": sub,
-                "exp": int((datetime.now(UTC) + timedelta(hours=720)).timestamp()),
-            }
+            # user_data = {
+            #     "username": username,
+            #     "sub": sub,
+            #     "exp": int((datetime.now(UTC) + timedelta(hours=720)).timestamp()),
+            # }
             
             # cookie_auth.set_cookie(
             #     user_data,
@@ -239,21 +227,15 @@ class AuthController(BaseController):
             "roles": o.roles
         })
      
-    @docs(
-        responses={200: ResponseInfo('')},
-        parameters={
-            "req": ParameterInfo(description="Change Password Request", value_type=ChangePasswordDto)
-        }
-    )
+    @docs(responses={200: ResponseInfo('')})
     @auth()  
     @post("/api/change-password") 
-    async def change_password(self, req: FromJSON[dict], request: Request) -> dict:
+    async def change_password(self, req: FromJSON[ChangePasswordDto], request: Request) -> dict:
         o = request.user.db_user
         if o is None:
             return self.unauthorized()
         
-        m = req.value
-        data = ChangePasswordDto(**m)
+        data = req.value
         if data.password != data.confirm_password:
             return self.bad_request({
                 "statusCode": 400,

@@ -1,8 +1,9 @@
 from blacksheep import Application, Request, Response, get, bad_request, json
 from blacksheep.server.authentication.jwt import JWTBearerAuthentication
 from blacksheep.server.authorization import auth
+from blacksheep.server.bindings import InvalidRequestBody
 from essentials.secrets import Secret
-from blacksheep.exceptions import HTTPException
+from blacksheep.exceptions import HTTPException, BadRequest
 
 import asyncpg
 from asyncpg import Pool
@@ -18,6 +19,7 @@ from constants.constant import AppConstant
 
 from services.common_setup import CommonSetupService
 from services.user import UserService
+from services.role import RoleService
 from services.token import TokenService
 
 
@@ -91,6 +93,7 @@ app.middlewares.append(database_user_middleware)
 def register():
     import controllers.setup.city
     import controllers.setup.user
+    import controllers.setup.role
     
 register()
 
@@ -101,6 +104,17 @@ async def handle_internal_server_error(self, request, exc: Exception):
         "statusCode": s,
         "message": exc.message if isinstance(exc, HTTPException) else str(exc)
     }, s)
+    
+    
+@app.exception_handler(BadRequest)
+async def handle_badrequest(self, request, exc: BadRequest):
+    if isinstance(exc, InvalidRequestBody):
+        return json({
+            "statusCode": 400,
+            "message": str(exc)
+        }, 400)
+        
+    return exc
 
 
 @app.exception_handler(ValidationError)
@@ -127,6 +141,7 @@ async def configure_database(application: Application) -> None:
     application.services.add_instance(pool, asyncpg.Pool)
     application.services.add_transient(CommonSetupService)
     application.services.add_transient(UserService)
+    application.services.add_transient(RoleService)
     application.services.add_transient(TokenService)
 
 @app.on_stop
