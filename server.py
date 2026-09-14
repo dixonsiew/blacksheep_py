@@ -69,6 +69,14 @@ app.use_authentication().add(
 
 app.use_authorization()
 
+async def userid_middleware(request: Request, handler):
+    if request.user and request.user.is_authenticated():
+        ts = app.services.resolve(TokenService)
+        userid = ts.get_userid(request.user)
+        request.user.id = userid
+        
+    return await handler(request)
+
 async def database_user_middleware(request: Request, handler):
     if request.user and request.user.is_authenticated():
         ts = app.services.resolve(TokenService)
@@ -77,6 +85,7 @@ async def database_user_middleware(request: Request, handler):
         
     return await handler(request)
 
+app.middlewares.append(userid_middleware)
 app.middlewares.append(database_user_middleware)
 
 def register():

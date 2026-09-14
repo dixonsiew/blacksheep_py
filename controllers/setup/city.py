@@ -156,8 +156,8 @@ class CityController(BaseSetupController):
     )
     @auth()
     @put("/city/{id}")  
-    async def update(self, id: FromRoute[int], req: FromJSON[dict], user: Identity | None) -> Response:
-        user_id = self.ts.get_userid(user)
+    async def update(self, id: FromRoute[int], req: FromJSON[dict], request: Request) -> Response:
+        user_id = request.user.id
         if user_id is None:
             return self.unauthorized()
                 
@@ -187,8 +187,8 @@ class CityController(BaseSetupController):
     )
     @auth()  
     @delete("/city/{id}")
-    async def delete(self, id: FromRoute[int], user: Identity | None) -> Response:
-        user_id = self.ts.get_userid(user)
+    async def delete(self, id: FromRoute[int], req: Request) -> Response:
+        user_id = req.user.id
         if user_id is None:
             return self.unauthorized()
         
