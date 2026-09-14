@@ -226,8 +226,8 @@ class AuthController(BaseController):
     @docs(responses={200: ResponseInfo('')})
     @auth()
     @get("/api/current-user")
-    async def user_details(self, user: Identity | None) -> dict:
-        o = await self.ts.get_user(user)
+    async def user_details(self, req: Request) -> dict:
+        o = req.user.db_user
         if o is None:
             return self.unauthorized()
 
@@ -247,7 +247,11 @@ class AuthController(BaseController):
     )
     @auth()  
     @post("/api/change-password") 
-    async def change_password(self, req: FromJSON[dict], user: Identity | None) -> dict:
+    async def change_password(self, req: FromJSON[dict], request: Request) -> dict:
+        o = request.user.db_user
+        if o is None:
+            return self.unauthorized()
+        
         m = req.value
         data = ChangePasswordDto(**m)
         if data.password != data.confirm_password:
@@ -255,10 +259,6 @@ class AuthController(BaseController):
                 "statusCode": 400,
                 "message": "Confirm Password does not match"
             })
-            
-        o = await self.ts.get_user(user)
-        if o is None:
-            return self.unauthorized()
         
         o.password = data.password
         await self.cs.update_password(o)

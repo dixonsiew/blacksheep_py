@@ -69,6 +69,16 @@ app.use_authentication().add(
 
 app.use_authorization()
 
+async def database_user_middleware(request: Request, handler):
+    if request.user and request.user.is_authenticated():
+        ts = app.services.resolve(TokenService)
+        user = await ts.get_user(request.user)
+        request.user.db_user = user
+        
+    return await handler(request)
+
+app.middlewares.append(database_user_middleware)
+
 def register():
     import controllers.setup.city
     import controllers.setup.user
